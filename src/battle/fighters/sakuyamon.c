@@ -75,6 +75,9 @@ typedef struct Unk800A7F88 {
     /* 0xB4 */ s32 vramY; /* Fighter_getVramY of the fighter */
 } Unk800A7F88;
 
+void func_800A7FEC(Unk800A7F88 *this);
+void func_800A8150(Unk800A7F88 *this, s32 arg);
+
 extern VtableEntry D_8006AE8C[];
 extern EntityVtable D_8006AEAC;
 
@@ -1172,7 +1175,49 @@ Unk800A7F88 *func_800A7C90(Unk800A7F88 *this, Fighter *fighter, VECTOR *point, V
     return this;
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A7DD4);
+void func_800A7DD4(Unk800A7F88 *this, s32 arg) {
+    Fighter *fighter = (Fighter *)getEntityByHandle(this->fighterHandle);
+
+    switch (this->unkAC) {
+    case 0:
+        if (fighter != NULL && !Fighter_isAttackIdle(fighter)) {
+            this->start.vx += (this->unk94.vx - this->start.vx) >> 2;
+            this->start.vy += (this->unk94.vy - this->start.vy) >> 2;
+            this->start.vz += (this->unk94.vz - this->start.vz) >> 2;
+            this->unkA8 += (0x40 - this->unkA8) >> 2;
+            this->part.position.vx = this->start.vx;
+            this->part.position.vy = this->start.vy;
+            this->part.position.vz = this->start.vz;
+            this->part.radius = this->unkA8;
+        } else {
+            ListNode *link = &this->part.link;
+            this->part.link.next->prev = this->part.link.prev;
+            link->prev->next = this->part.link.next;
+            this->part.link.next = link;
+            this->part.link.prev = link;
+            this->unkAC = 2;
+        }
+        break;
+    case 1:
+        func_800A8150(this, arg);
+        func_800A7FEC(this);
+        if (this->unkB0 >= 17) {
+            goto delete;
+        }
+        break;
+    case 2:
+        if ((this->unkA8 -= 2) <= 0) {
+            goto delete;
+        }
+        break;
+    }
+    this->unkA4 = this->unkB0 & 7;
+    this->unkB0++;
+    return;
+
+delete:
+    entityDelete(&this->entity);
+}
 
 /* The second base's Hit_apply with arg, then disables the part when getHitFighter finds an entity in arg and 0xAC is
  * 0. */
@@ -1230,7 +1275,7 @@ struct Unk800A83E0 *func_800A83E0(struct Unk800A83E0 *this, Vec3 *position, Vec3
                                   s32 steerFrames, s32 vramY);
 
 /* Spawns a ring of 8 Unk800A83E0 projectiles around the axis of unk94, rotated by unkB0 * 0x80 + i * 0x200. */
-void func_800A8150(Unk800A7F88 *this) {
+void func_800A8150(Unk800A7F88 *this, s32 arg) {
     VECTOR baseVel;
     VECTOR axis;
     MATRIX m;

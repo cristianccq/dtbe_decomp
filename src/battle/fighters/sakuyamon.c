@@ -1535,9 +1535,6 @@ INCLUDE_RODATA("game/nonmatchings/fighters/sakuyamon", D_8006ACD4);
 
 void func_800A94D0(Unk800A9944 *this);
 
-#if VERSION_JP
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A926C);
-#else
 static const CVECTOR D_8006AE3C = { 0x43, 0xE0, 0x98, 0 };
 Unk800A9944 *func_800A926C(Unk800A9944 *this, Fighter *fighter, Vec3 *position) {
     Hit *hit;
@@ -1602,7 +1599,6 @@ Unk800A9944 *func_800A926C(Unk800A9944 *this, Fighter *fighter, Vec3 *position) 
     func_800A94D0(this);
     return this;
 }
-#endif
 
 /* The destructor of func_800A926C's class: stops its sound, takes its member at 0x38 out of its list. */
 void func_800A9428(Unk800A9944 *this, s32 flags) {

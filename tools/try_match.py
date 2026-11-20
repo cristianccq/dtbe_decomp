@@ -94,13 +94,13 @@ for i,(off,name) in enumerate(syms):
     if want and name not in want: continue
     asm=next(iter(unit_filter(glob.glob(f'{A}/*/nonmatchings/**/{name}.s',recursive=True))),None)
     if asm is not None:
-        t=open(asm).read()
+        t=open(asm, errors="ignore").read()
     else:
         # already in C: take it from splat's full disassembly
         t=None
         for full in unit_filter(glob.glob(f'{A}/*/**/*.s',recursive=True)):
             if '/nonmatchings/' in full: continue
-            ft=open(full).read()
+            ft=open(full, errors="ignore").read()
             k=ft.find(f'nonmatching {name}, ')
             if k>=0:
                 e=ft.find(f'endlabel {name}',k)

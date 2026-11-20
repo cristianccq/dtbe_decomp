@@ -4,7 +4,14 @@
 #include "common.h"
 #include <abs.h>
 #include "battle/game_classes.h"
+#include "engine/gfx/prim/build_line_g2.h"
+#include "engine/gfx/prim_buffer.h"
 #include "engine/math/sin_cos.h"
+
+#define UV_BYTES(uv) ((u8 *)&(uv))
+
+static inline s16 getCosInline(s32 angle) { return COS_SIN_TABLE[angle & 0xFFF].cos; }
+static inline s16 getSinInline(s32 angle) { return COS_SIN_TABLE[angle & 0xFFF].sin; }
 
 Entity *DukemonSpecial1Effect_init(Entity *this, Fighter *arg, Fight *arg2);
 Entity *func_80085B7C(Entity *this, Fighter *arg, Vec3 *vec);
@@ -503,7 +510,73 @@ void DukemonSpecial1Effect_destroy(Entity *this, s32 flags) {
 
 INCLUDE_ASM("game/nonmatchings/fighters/dukemon", DukemonSpecial1Effect_tick);
 
-INCLUDE_ASM("game/nonmatchings/fighters/dukemon", DukemonSpecial1Effect_draw);
+typedef struct DukemonSpecial1Effect {
+    /* 0x00 */ Entity entity;
+    /* 0x18 */ Fighter *fighter;
+    /* 0x1C */ Fight *fight;
+    /* 0x20 */ MATRIX matrix;
+    /* 0x40 */ u16 unk40;
+    /* 0x42 */ s16 unk42;
+    /* 0x44 */ u16 vramY;
+} DukemonSpecial1Effect;
+
+/* Draws the special move 1's effect as a 9-quad cone of PolyFT4 primitives around the X axis. */
+void DukemonSpecial1Effect_draw(DukemonSpecial1Effect *this, Camera *camera) {
+    SVECTOR corners[4];
+    PolyFT4Shape shape;
+    s32 i;
+    s32 c;
+    s32 c4;
+    u16 vramY;
+
+    corners[2].vx = -0x96;
+    corners[2].vy = 0;
+    corners[2].vz = 0;
+    corners[3].vx = -0x96;
+    corners[3].vy = 0;
+    corners[3].vz = 0;
+    vramY = this->vramY;
+    shape.flags = 9;
+    shape.tpage = getTPage(0, 1, 0x1C0, vramY);
+    shape.clut = getClut(0x1C0, vramY + 0xF9);
+    c = (s16)this->unk40;
+    c4 = c >> 2;
+    shape.color = c | (c4 << 8) | (c4 << 16);
+    setModelMatrix(&this->matrix);
+
+    for (i = 0; i < 9; i++) {
+        s32 x = -0x10;
+        s32 c1, s1, c2, s2;
+        void *packet;
+        s32 a2;
+
+        shape.corners[0] = &corners[0];
+        shape.corners[1] = &corners[1];
+        shape.corners[2] = &corners[2];
+        corners[0].vx = x;
+        corners[1].vx = x;
+        shape.corners[3] = &corners[3];
+        UV_BYTES(shape.uv3)[0] = 0x8F;
+        UV_BYTES(shape.uv2)[0] = 0x8F;
+        UV_BYTES(shape.uv3)[1] = 0xDF;
+        UV_BYTES(shape.uv2)[1] = 0xDF;
+        s1 = getSinInline(i << 9);
+        c1 = getCosInline(i << 9);
+        a2 = (i + 1) << 9;
+        s2 = getSinInline(a2);
+        c2 = getCosInline(a2);
+        corners[0].vy = c1 >> 4;
+        corners[0].vz = s1 >> 4;
+        corners[1].vy = c2 >> 4;
+        packet = PRIM_BUFFER_FREE;
+        corners[1].vz = s2 >> 4;
+        UV_BYTES(shape.uv0)[0] = (s1 >> 7) + 0x8F;
+        UV_BYTES(shape.uv0)[1] = (c1 >> 7) + 0xDF;
+        UV_BYTES(shape.uv1)[0] = (s2 >> 7) + 0x8F;
+        UV_BYTES(shape.uv1)[1] = (c2 >> 7) + 0xDF;
+        PRIM_BUFFER_FREE = buildPolyFT4(&shape, packet, camera->ot.slots, camera->zShift + 1);
+    }
+}
 
 /* The special move 2's effect (0x34 bytes): it follows the fighter for 21 frames, fading from frame 13. */
 typedef struct DukemonSpecial2Effect {

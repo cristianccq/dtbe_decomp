@@ -600,7 +600,62 @@ void BeelzebumonThrowEffect_tick(BeelzebumonThrowEffect *this, s32 arg) {
     }
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/beelzebumon", BeelzebumonThrowEffect_draw);
+extern MATRIX D_800108B4;
+
+void BeelzebumonThrowEffect_draw(BeelzebumonThrowEffect *this, Camera *camera) {
+    MATRIX mat;
+    SVECTOR corners[4];
+    PolyFT4Shape shape;
+    u_long *ot;
+    s32 zShift;
+    s32 color;
+    u16 vramY;
+    s32 neg;
+    s32 pos;
+
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+
+    mat = D_800108B4;
+    matrixTranslate(&mat, this->position.vx, this->position.vy, this->position.vz);
+    matrixRotateZ(&mat, this->unk30);
+    setModelMatrix(&mat);
+
+    neg = -0x199;
+    pos = 0x199;
+
+    corners[0].vy = corners[1].vy = neg;
+    corners[2].vy = corners[3].vy = pos;
+    corners[2].vz = 0;
+    corners[0].vz = 0;
+    corners[3].vz = 0;
+    corners[1].vz = 0;
+
+    shape.corners[0] = &corners[0];
+    shape.corners[1] = &corners[1];
+    shape.corners[2] = &corners[2];
+    shape.corners[3] = &corners[3];
+
+    ((u8 *)&shape.uv0)[0] = ((u8 *)&shape.uv2)[0] = 0xA0;
+    ((u8 *)&shape.uv1)[0] = ((u8 *)&shape.uv3)[0] = 0xDF;
+    ((u8 *)&shape.uv0)[1] = ((u8 *)&shape.uv1)[1] = 0x20;
+    ((u8 *)&shape.uv2)[1] = ((u8 *)&shape.uv3)[1] = 0x5F;
+
+    corners[0].vx = (corners[2].vx = this->facing * neg);
+
+    shape.flags = 0xB;
+
+    color = this->unk34;
+    shape.color = color | (color << 8) | (color << 16);
+
+    vramY = this->vramY;
+    shape.clut = ((vramY + 0x79) << 6) | 0x1C;
+    shape.tpage = (((vramY & 0x100) >> 4) | 0x27) | ((vramY & 0x200) << 2);
+
+    corners[1].vx = (corners[3].vx = this->facing * pos);
+
+    PRIM_BUFFER_FREE = buildPolyFT4(&shape, PRIM_BUFFER_FREE, ot, zShift);
+}
 
 /* One of the four slots at 0xCC of BeelzebumonSpecial1Projectile (BeelzebumonSpecial1Projectile_tick moves them,
  * BeelzebumonSpecial1Projectile_draw draws them). */

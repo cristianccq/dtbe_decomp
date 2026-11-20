@@ -903,7 +903,81 @@ void func_800C1180(GokumonSpecial3Hitbox *this) {
 
 INCLUDE_ASM("game/nonmatchings/fighters/gokumon", func_800C12A4);
 
-INCLUDE_ASM("game/nonmatchings/fighters/gokumon", GokumonSpecial3Hitbox_draw);
+#define UV_BYTES(uv) ((u8 *)&(uv))
+
+/* Draws Gokumon's special move 3 cyclone as up to 7 stacked rings of 7 PolyFT4 quads around the Y axis. */
+void GokumonSpecial3Hitbox_draw(GokumonSpecial3Hitbox *this, Camera *camera) {
+    MatrixWords m;
+    MATRIX *mp;
+    PolyFT4Shape shape;
+    void *packet;
+    void *ot;
+    s32 zShift;
+    Vec3 *pos;
+    s32 x, y, z;
+    s32 count;
+    s32 vramY;
+    s32 i, j, next;
+
+    mp = &m.m;
+    packet = PRIM_BUFFER_FREE;
+    pos = &this->position;
+    x = pos->vx;
+    y = pos->vy;
+    z = pos->vz;
+    m.words[0] = ONE;
+    m.words[1] = 0;
+    m.words[2] = ONE;
+    m.words[3] = 0;
+    m.words[4] = ONE;
+    m.m.t[0] = x;
+    m.m.t[1] = y;
+    m.m.t[2] = z;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+    matrixSetRotationY(mp, this->unk294);
+    setModelMatrix(mp);
+    do {
+        count = this->pulses;
+        UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = 0;
+        UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = 0x3F;
+        UV_BYTES(shape.uv0)[1] = UV_BYTES(shape.uv1)[1] = 0;
+        UV_BYTES(shape.uv2)[1] = UV_BYTES(shape.uv3)[1] = 0x3F;
+        vramY = this->vramY;
+        shape.flags = 9;
+        shape.clut = getClut(0x1C0, vramY + 0xFE);
+        shape.tpage = getTPage(0, 1, 0x1C0, vramY);
+    } while (0);
+    if (count >= 8) {
+        count = 7;
+    }
+    for (i = 0; i < count; i = next) {
+        s32 c, off;
+        SVECTOR *c0, *c1, *c2, *c3;
+
+        c = this->unk298 * (count - i);
+        c /= count;
+        next = i + 1;
+        off = i << 6;
+        c3 = (SVECTOR *)((u8 *)this + (off + 0xC8));
+        c2 = (SVECTOR *)((u8 *)this + (off + 0xC0));
+        c1 = (SVECTOR *)((u8 *)this + (off + 0x88));
+        c0 = (SVECTOR *)((u8 *)this + (off + 0x80));
+        shape.color = c | (c << 8) | (c << 16);
+        for (j = 6; j >= 0; j--) {
+            shape.corners[0] = c0;
+            shape.corners[1] = c1;
+            shape.corners[2] = c2;
+            shape.corners[3] = c3;
+            packet = buildPolyFT4(&shape, packet, ot, zShift);
+            c3++;
+            c2++;
+            c1++;
+            c0++;
+        }
+    }
+    PRIM_BUFFER_FREE = packet;
+}
 
 /* the frame of func_800C16F8's sprite */
 extern SpriteAnimRow D_8006CD94;

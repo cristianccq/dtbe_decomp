@@ -13,7 +13,8 @@
 #include "engine/sound/sound_control.h"
 
 void Sakuyamon_spawnTrail(Fighter *this, s32 arg);
-void func_800A7290(Entity *this, s32 arg);
+struct Unk800A6EB8;
+void func_800A7290(struct Unk800A6EB8 *this, Camera *camera);
 void func_800A7458(Entity *this, s32 arg);
 void func_800A8C24(Entity *this, s32 arg);
 void func_800A8F80(Entity *this, s32 arg);
@@ -1020,11 +1021,71 @@ INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A6F8C);
 
 /* The draw of the entities of D_8006AF9C: func_800A7290, then func_800A7458. */
 void func_800A7254(Entity *this, s32 arg) {
-    func_800A7290(this, arg);
+    func_800A7290((Unk800A6EB8 *)this, (Camera *)arg);
     func_800A7458(this, arg);
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A7290);
+void func_800A7290(Unk800A6EB8 *this, Camera *camera) {
+    MatrixWords m;
+    PolyFT4Shape shape;
+    Vec3 *pos = &this->points[0].position;
+    s32 scale = this->points[0].unk14;
+    u_long *ot;
+    s32 zShift;
+    void *packet;
+    s32 color;
+    u8 u;
+    u8 v;
+    s32 vramY;
+
+    m.words[1] = 0;
+    m.words[3] = 0;
+    m.words[4] = 0x1000;
+    m.m.t[0] = pos->vx;
+    m.m.t[1] = pos->vy;
+    m.m.t[2] = pos->vz;
+    m.words[0] = (u16)scale;
+    m.words[2] = (u16)scale;
+
+    packet = PRIM_BUFFER_FREE;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+
+    setModelMatrix(&m.m);
+
+    shape.corners[0] = &SQUARE_CORNERS[0];
+    shape.corners[1] = &SQUARE_CORNERS[1];
+    shape.corners[2] = &SQUARE_CORNERS[2];
+    shape.corners[3] = &SQUARE_CORNERS[3];
+
+    color = this->unk1C;
+    shape.flags = 9;
+    shape.color = color | (color << 8) | (color << 16);
+
+    u = ((this->points[0].unk10 & 3) * 3) << 4;
+    UV_BYTES(shape.uv2)[0] = u;
+    UV_BYTES(shape.uv0)[0] = u;
+    UV_BYTES(shape.uv3)[0] = u + 0x2F;
+    UV_BYTES(shape.uv1)[0] = u + 0x2F;
+
+    v = (((this->points[0].unk10 & 4) * 3) << 2) + 0x40;
+    UV_BYTES(shape.uv1)[1] = v;
+    vramY = this->vramY;
+    UV_BYTES(shape.uv0)[1] = v;
+    UV_BYTES(shape.uv3)[1] = v + 0x2F;
+    UV_BYTES(shape.uv2)[1] = v + 0x2F;
+
+    shape.clut = getClut(0x1C0, vramY + 0xF8);
+    shape.tpage = getTPage(0, 1, 0x1C0, vramY);
+
+    packet = buildPolyFT4(&shape, packet, ot, zShift + 1);
+
+    shape.clut = getClut(0x1C0, vramY + 0xF9);
+    shape.tpage = getTPage(0, 2, 0x1C0, vramY);
+    shape.flags = (shape.flags & ~3) | 0xA;
+
+    PRIM_BUFFER_FREE = buildPolyFT4(&shape, packet, ot, zShift);
+}
 
 INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A7458);
 

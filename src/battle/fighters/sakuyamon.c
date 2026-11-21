@@ -15,7 +15,7 @@
 void Sakuyamon_spawnTrail(Fighter *this, s32 arg);
 struct Unk800A6EB8;
 void func_800A7290(struct Unk800A6EB8 *this, Camera *camera);
-void func_800A7458(Entity *this, s32 arg);
+void func_800A7458(struct Unk800A6EB8 *this, Camera *camera);
 void func_800A8C24(Entity *this, s32 arg);
 void func_800A8F80(Entity *this, s32 arg);
 extern VtableEntry D_8006AF2C[];
@@ -1025,7 +1025,7 @@ INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A6F8C);
 /* The draw of the entities of D_8006AF9C: func_800A7290, then func_800A7458. */
 void func_800A7254(Entity *this, s32 arg) {
     func_800A7290((Unk800A6EB8 *)this, (Camera *)arg);
-    func_800A7458(this, arg);
+    func_800A7458((Unk800A6EB8 *)this, (Camera *)arg);
 }
 
 void func_800A7290(Unk800A6EB8 *this, Camera *camera) {
@@ -1090,7 +1090,77 @@ void func_800A7290(Unk800A6EB8 *this, Camera *camera) {
     PRIM_BUFFER_FREE = buildPolyFT4(&shape, packet, ot, zShift);
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A7458);
+void func_800A7458(Unk800A6EB8 *this, Camera *camera) {
+    PolyFT4Shape shape0;
+    PolyFT4Shape shape1;
+    MatrixWords matrix;
+    Unk800A6EB8Point *point;
+    void *packet;
+    s32 zShift;
+    u_long *ot;
+    s32 i;
+    s32 color;
+    s32 vramY;
+    s32 s;
+    u8 u, v;
+    s32 unk10;
+    s32 one;
+
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+    packet = PRIM_BUFFER_FREE;
+    shape0.corners[0] = shape1.corners[0] = &SQUARE_CORNERS[0];
+    shape0.corners[1] = shape1.corners[1] = &SQUARE_CORNERS[1];
+    shape0.corners[2] = shape1.corners[2] = &SQUARE_CORNERS[2];
+    shape0.corners[3] = shape1.corners[3] = &SQUARE_CORNERS[3];
+    shape0.flags = 9;
+    shape1.flags = 10;
+    matrix.words[0] = 0x1000;
+    matrix.words[1] = 0;
+    matrix.words[2] = 0x1000;
+    matrix.words[3] = 0;
+    matrix.words[4] = 0x1000;
+    matrix.m.t[0] = 0;
+    matrix.m.t[1] = 0;
+    matrix.m.t[2] = 0;
+    color = this->unk1C;
+    shape0.color = shape1.color = color | (color << 8) | (color << 16);
+    vramY = this->vramY;
+    shape0.clut = getClut(0x1C0, vramY + 0xF8);
+    shape0.tpage = getTPage(0, 1, 0x1C0, vramY);
+    shape1.clut = getClut(0x1C0, vramY + 0xF9);
+    shape1.tpage = getTPage(0, 2, 0x1C0, vramY);
+
+    for (i = 1; i < 6; i++) {
+        s32 x, y, z;
+
+        point = &this->points[i];
+        one = 0x1000;
+        s = point->unk14;
+        x = point->position.vx;
+        y = point->position.vy;
+        z = point->position.vz;
+        matrix.words[1] = 0;
+        matrix.words[3] = 0;
+        matrix.words[4] = one;
+        matrix.m.t[0] = x;
+        matrix.m.t[1] = y;
+        matrix.m.t[2] = z;
+        matrix.words[0] = s & 0xFFFF;
+        matrix.words[2] = s & 0xFFFF;
+        setModelMatrix(&matrix.m);
+        unk10 = point->unk10;
+        u = (unk10 & 3) * 48;
+        UV_BYTES(shape0.uv0)[0] = UV_BYTES(shape0.uv2)[0] = UV_BYTES(shape1.uv0)[0] = UV_BYTES(shape1.uv2)[0] = u;
+        UV_BYTES(shape0.uv1)[0] = UV_BYTES(shape0.uv3)[0] = UV_BYTES(shape1.uv1)[0] = UV_BYTES(shape1.uv3)[0] = u + 0x2F;
+        v = ((unk10 & 4) * 12) + 0x40;
+        UV_BYTES(shape0.uv0)[1] = UV_BYTES(shape0.uv1)[1] = UV_BYTES(shape1.uv0)[1] = UV_BYTES(shape1.uv1)[1] = v;
+        UV_BYTES(shape0.uv2)[1] = UV_BYTES(shape0.uv3)[1] = UV_BYTES(shape1.uv2)[1] = UV_BYTES(shape1.uv3)[1] = v + 0x2F;
+        packet = buildPolyFT4(&shape0, packet, ot, zShift + 1);
+        packet = buildPolyFT4(&shape1, packet, ot, zShift);
+    }
+    PRIM_BUFFER_FREE = packet;
+}
 
 /* Builds an Unk800A7694 on side (0 or 1) of the Unk800A6EB8 of handle, with identity matrices. */
 Unk800A7694 *func_800A7694(Unk800A7694 *this, s32 handle, s32 side) {

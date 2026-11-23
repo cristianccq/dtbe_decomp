@@ -1476,7 +1476,61 @@ void func_8009880C(Unk80098720 *this) {
     }
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/beelzebumon", func_800988A4);
+void func_800988A4(Unk80098720 *this, Camera *camera) {
+    SVECTOR corners[4];
+    MATRIX m;
+    PolyFT4Shape shape;
+    u8 *packet;
+    u_long *ot;
+    s32 zShift;
+    s32 pos;
+    s32 neg;
+    s32 color;
+    u16 vramY;
+    SVECTOR *c;
+
+    m = D_800108B4;
+    packet = PRIM_BUFFER_FREE;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+    pos = this->unk2C;
+
+    matrixTranslate(&m, this->position.vx, this->position.vy, this->position.vz);
+    matrixRotateY(&m, 0x71);
+    matrixRotateX(&m, this->unk30);
+
+    neg = -pos;
+    c = corners;
+    corners[1].vy = neg;
+    corners[0].vy = neg;
+    corners[0].vx = corners[2].vx = 0;
+    corners[3].vz = neg;
+    corners[1].vz = neg;
+
+    shape.corners[0] = c;
+    shape.corners[1] = c + 1;
+    shape.corners[2] = c + 2;
+    shape.corners[3] = c + 3;
+
+    UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = 0xA0;
+    UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = 0xBF;
+    corners[1].vx = corners[3].vx = 0;
+    corners[2].vy = corners[3].vy = pos;
+    corners[0].vz = corners[2].vz = pos;
+    UV_BYTES(shape.uv0)[1] = UV_BYTES(shape.uv1)[1] = 0xE0;
+    UV_BYTES(shape.uv2)[1] = UV_BYTES(shape.uv3)[1] = 0xFF;
+
+    color = this->unk38;
+    shape.flags = 8;
+    vramY = this->vramY;
+
+    shape.color = color | (color << 8) | (color << 16);
+    shape.clut = ((vramY + 0xEA) << 6) | 0x1C;
+    shape.tpage = (((vramY & 0x100) >> 4) | 0x27) | ((vramY & 0x200) << 2);
+
+    setModelMatrix(&m);
+    PRIM_BUFFER_FREE = buildPolyFT4(&shape, packet, ot, zShift);
+}
 
 /* The UnkPartsEntity3C class func_80098A78 constructs (0xC8 bytes, virtual table D_80069A2C). */
 typedef struct Unk80098A78 {

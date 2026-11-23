@@ -698,7 +698,59 @@ BeelzebumonSpecial1Projectile *BeelzebumonSpecial1Projectile_init(BeelzebumonSpe
     return this;
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/beelzebumon", BeelzebumonSpecial1Projectile_tick);
+/* Moves the special move 1's projectile: its slots advance by velocity; on odd frames while alive,
+ * spawns a slot with random velocity offset by direction; advances unkC8 and calls Projectile_tick. */
+void BeelzebumonSpecial1Projectile_tick(BeelzebumonSpecial1Projectile *this, s32 arg) {
+    BeelzebumonSpecial1Projectile *p;
+    s32 i;
+    s32 dir;
+    s32 x, y, z;
+
+    p = this;
+    for (i = 3; i >= 0; i--, p = (BeelzebumonSpecial1Projectile *)((u8 *)p + 0x24)) {
+        if (p->slots[0].unk0 != 0) {
+            p->slots[0].unk2++;
+            if ((s16)p->slots[0].unk2 >= 4) {
+                p->slots[0].unk0 = 0;
+            } else {
+                x = p->slots[0].unk4.vx;
+                y = p->slots[0].unk4.vy;
+                x += p->slots[0].unk14.vx;
+                z = p->slots[0].unk4.vz;
+                y += p->slots[0].unk14.vy;
+                p->slots[0].unk4.vx = x;
+                p->slots[0].unk4.vy = y;
+                z += p->slots[0].unk14.vz;
+                p->slots[0].unk4.vz = z;
+            }
+        }
+    }
+    if (this->base.age > 0 && (this->base.age & 1)) {
+        if (this->base.velocity.vx > 0) {
+            dir = 1;
+        } else {
+            dir = -1;
+        }
+        for (i = 0; i < 4; i++) {
+            if (this->slots[i].unk0 == 0) {
+                this->slots[i].unk0 = 1;
+                this->slots[i].unk2 = 0;
+                this->slots[i].unk4.vx = ((mersenneTwisterGenerate(&this->fight->random) & 0x1F) - 0x60) + dir;
+                this->slots[i].unk4.vy = (mersenneTwisterGenerate(&this->fight->random) & 0x1F) - 0x10;
+                this->slots[i].unk4.vz = 0;
+                this->slots[i].unk14.vx = ((mersenneTwisterGenerate(&this->fight->random) & 0x1F) - 0x60) * dir;
+                this->slots[i].unk14.vy = (mersenneTwisterGenerate(&this->fight->random) & 0x1F) - 0x10;
+                this->slots[i].unk14.vz = 0;
+                break;
+            }
+        }
+    }
+    this->unkC8++;
+    if (this->unkC8 >= 3) {
+        this->unkC8 = 0;
+    }
+    Projectile_tick(&this->base, arg);
+}
 void func_80096984(BeelzebumonSpecial1Projectile *this);
 
 /* On a hit: Hit_apply; when it struck a fighter, func_80096984's flash unless the fighter guards, and the projectile's

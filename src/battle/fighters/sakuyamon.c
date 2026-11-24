@@ -362,7 +362,7 @@ typedef struct Unk800A6EB8 {
     /* 0x00 */ Entity entity;
     /* 0x18 */ s32 handle; /* the Unk800A65F8's */
     /* 0x1C */ s32 unk1C;  /* 0x80 at first; the Unk800A7694s copy it every tick */
-    /* 0x20 */ u8 unk20[4];
+    /* 0x20 */ s32 unk20;
     /* 0x24 */ s32 vramY;  /* the Unk800A65F8's, 0 without one */
     /* 0x28 */ VECTOR unk28;
     /* 0x38 */ Unk800A6EB8Point points[6];
@@ -1020,7 +1020,80 @@ Unk800A6EB8 *func_800A6EB8(Unk800A6EB8 *this, s32 handle) {
     return this;
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A6F8C);
+/* Ticks an Unk800A6EB8: follows the Unk800A65F8 of handle (deleting itself once gone), updates its six trailing
+ * points and their radii, and spawns a particle burst at the tail every 8 frames. */
+void func_800A6F8C(Entity *arg) {
+    Unk800A6EB8 *this = (Unk800A6EB8 *)arg;
+    Unk800A65F8 *parts;
+    VECTOR prev;
+    VECTOR diff;
+    Vec3 *prevPos;
+    Unk800A6EB8Point *point;
+    s32 baseRadius;
+    s32 prevRadius;
+    s32 i;
+    Entity *child;
+
+    parts = (Unk800A65F8 *)getEntityByHandle(this->handle);
+    if (parts == NULL) {
+        entityDelete(&this->entity);
+        return;
+    }
+    prev = parts->position;
+    baseRadius = parts->unkC8;
+    *(Vec3 *)&this->unk28 = *(Vec3 *)&prev;
+    this->unk1C = parts->unkCC;
+    prevRadius = baseRadius;
+    prevPos = (Vec3 *)&prev;
+    for (i = 0; i < 6; i++) {
+        s32 step;
+        s32 len;
+
+        point = &this->points[i];
+        point->unk14 = ((12 - i) * baseRadius) / 12;
+        if (i == 0) {
+            point->unk14 = (point->unk14 * 3) >> 1;
+        }
+        {
+            s32 x = point->position.vx;
+            s32 y = point->position.vy;
+            s32 z = point->position.vz;
+            x -= prevPos->vx;
+            y -= prevPos->vy;
+            z -= prevPos->vz;
+            diff.vx = x;
+            diff.vy = y;
+            diff.vz = z;
+        }
+        step = point->unk14;
+        if (step < prevRadius) {
+            step = prevRadius;
+        }
+        len = vecGetLength(&diff) + 1;
+        diff.vx = (diff.vx * step) / len;
+        diff.vy = (diff.vy * step) / len;
+        diff.vz = (diff.vz * step) / len;
+        {
+            s32 x = prevPos->vx;
+            s32 y = prevPos->vy;
+            s32 z = prevPos->vz;
+            x += diff.vx;
+            y += diff.vy;
+            z += diff.vz;
+            point->position.vx = x;
+            point->position.vy = y;
+            point->position.vz = z;
+        }
+        prevPos = &point->position;
+        prevRadius = point->unk14;
+        point->unk10 = (point->unk10 + 1) & 7;
+    }
+    if ((this->unk20 & 7) == 0) {
+        child = NEW_ENTITY(0x3C, ParticleBurst_init, 9, &this->points[5].position, 0x20, 4, 1, 0xFF4C79);
+        entityAddSibling(&this->entity, child);
+    }
+    this->unk20++;
+}
 
 /* The draw of the entities of D_8006AF9C: func_800A7290, then func_800A7458. */
 void func_800A7254(Entity *this, s32 arg) {

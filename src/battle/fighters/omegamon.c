@@ -7,6 +7,7 @@
 #include "engine/game/game_state.h"
 #include "engine/gfx/prim/build_line_g2.h"
 #include "engine/gfx/prim_buffer.h"
+#include "engine/math/sin_cos.h"
 #include "gte.h"
 
 struct OmegamonSpecial1Projectile *OmegamonSpecial1Projectile_init(struct OmegamonSpecial1Projectile *this,
@@ -736,7 +737,114 @@ void OmegamonSpecial2Hitbox_destroy(UnkPartsEntity3C *this, s32 flags) {
     }
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/omegamon", OmegamonSpecial2Hitbox_tick);
+/* The special move 2 hitbox (vtable OMEGAMON_SPECIAL2_HITBOX_VTABLE, 0xC0 bytes). */
+typedef struct OmegamonSpecial2Hitbox {
+    /* 0x00 */ UnkPartsEntity3C parts;
+    /* 0x84 */ Fighter *owner;
+    /* 0x88 */ Fight *fight;
+    /* 0x8C */ VECTOR position;
+    /* 0x9C */ s32 facing;
+    /* 0xA0 */ s32 unkA0;
+    /* 0xA4 */ s32 duration;
+    /* 0xA8 */ s32 unkA8;
+    /* 0xAC */ s32 unkAC;
+    /* 0xB0 */ s32 unkB0;
+    /* 0xB4 */ s32 unkB4;
+    /* 0xB8 */ s32 ticks;
+    /* 0xBC */ s32 unkBC;
+} OmegamonSpecial2Hitbox;
+
+/* Ticks the special move 2 hitbox: sweeps its collision sphere along an arc over frames 1..5, applies knockback on a
+ * non-guarded hit, and deletes itself once ticks reaches duration. */
+void OmegamonSpecial2Hitbox_tick(OmegamonSpecial2Hitbox *this) {
+    VECTOR pos;
+    s32 t;
+
+    if (this->ticks >= this->duration) {
+        entityDelete(&this->parts.entity);
+        return;
+    }
+    t = this->ticks - 1;
+    if (this->unkA0 == 0 && t == -1) {
+        this->parts.part.flags.bits.disabled = 0;
+        pos = this->position;
+        this->parts.part.position = *(Vec3 *)&pos;
+    }
+    if ((u32)t < 5) {
+        s32 startAngle;
+        s32 stepAngle;
+        s32 c;
+        s32 s;
+        s32 radius;
+
+        if (t == 0) {
+            this->parts.part.flags.bits.disabled = 0;
+        }
+        if (t == 4) {
+            this->parts.part.flags.bits.disabled = 1;
+        }
+        pos = this->position;
+        if (this->facing > 0) {
+            if (this->unkA0 == 0) {
+                startAngle = 0x800;
+                stepAngle = -0x180;
+            } else {
+                startAngle = 0;
+                stepAngle = 0x180;
+            }
+        } else {
+            if (this->unkA0 == 0) {
+                startAngle = 0x800;
+                stepAngle = 0x180;
+            } else {
+                startAngle = 0;
+                stepAngle = -0x180;
+            }
+        }
+        radius = startAngle + stepAngle * t;
+        startAngle = radius & 0xFFF;
+        c = COS_SIN_TABLE[startAngle].cos;
+        s = COS_SIN_TABLE[startAngle].sin;
+        if (this->unkA0 == 1) {
+            c >>= 2;
+        }
+        radius = (this->unkB0 + this->unkB4) >> 1;
+        pos.vx += (radius * s) >> 12;
+        pos.vy += (radius * c) >> 12;
+        this->parts.part.position = *(Vec3 *)&pos;
+    }
+    if (this->parts.part.flags.bits.touched) {
+        this->parts.part.flags.bits.touched = 0;
+        if (TrackedHit_hitFighter(&this->parts.unk18)) {
+            Fighter *opponent;
+            this->parts.part.flags.bits.disabled = 1;
+            opponent = Fighter_getOpponent(this->owner);
+            if (!Fighter_isGuarding(opponent)) {
+                if (this->unkA0 == 0) {
+                    pos.vx = this->facing * 0xE38;
+                    pos.vy = 0;
+                    pos.vz = 0;
+                } else {
+                    pos.vx = this->facing * 0x238C;
+                    pos.vy = -0x38E0;
+                    pos.vz = 0;
+                }
+                {
+                    s32 x = pos.vx;
+                    s32 y = pos.vy;
+                    s32 z = pos.vz;
+                    opponent->force.vx = x;
+                    opponent->force.vy = y;
+                    opponent->force.vz = z;
+                }
+            }
+        }
+    }
+    this->unkAC -= 0x1E;
+    this->unkB0 += 0xCC;
+    this->unkB4 += 0x66;
+    this->ticks++;
+}
 
 INCLUDE_ASM("game/nonmatchings/fighters/omegamon", OmegamonSpecial2Hitbox_draw);
 

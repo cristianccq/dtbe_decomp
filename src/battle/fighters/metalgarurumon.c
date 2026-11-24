@@ -447,7 +447,71 @@ void MetalGarurumon_special3(Fighter *this, s32 frame) {
 
 INCLUDE_RODATA("game/nonmatchings/fighters/metalgarurumon", D_80069EF0);
 
-INCLUDE_ASM("game/nonmatchings/fighters/metalgarurumon", func_8009A920);
+typedef struct Unk80069EF0 {
+    /* 0x00 */ VECTOR offset;
+    /* 0x10 */ s32 dir;
+    /* 0x14 */ s32 rotY;
+    /* 0x18 */ s32 rotZ;
+    /* 0x1C */ s32 node;
+} Unk80069EF0;
+
+extern Unk80069EF0 D_80069EF0[15];
+struct MetalGarurumonSpecial3Hitbox *MetalGarurumonSpecial3Hitbox_init(struct MetalGarurumonSpecial3Hitbox *this,
+                                                                       Fighter *fighter, Vec3 *position, Vec3 *velocity,
+                                                                       s32 arg4);
+MetalGarurumonSpecial2Projectile *func_8009CE8C(MetalGarurumonSpecial2Projectile *this, Fighter *fighter,
+                                                Vec3 *position, Vec3 *velocity);
+
+/* Spawns the 14 homing missiles (MetalGarurumonSpecial3Hitbox) and 1 final projectile (func_8009CE8C) for special 3. */
+void func_8009A920(Fighter *this) {
+    VECTOR pos;
+    VECTOR vel;
+    Unk80069EF0 entry;
+    MatrixWords m;
+    s32 facing;
+    s32 i;
+    Unk80069EF0 *p;
+    Entity *child;
+    s32 rotY;
+    VECTOR *vp;
+    MATRIX *mp;
+
+    facing = Fighter_getFacing(this);
+    for (i = 0; i < 15; i++) {
+        p = D_80069EF0;
+        vp = &vel;
+        mp = &m.m;
+        entry = p[i];
+        Fighter_getNodePosition(this, &pos, entry.node, &entry.offset);
+        vel.vx = 0x60;
+        vel.vy = 0;
+        vel.vz = 0;
+        m.words[0] = 0x1000;
+        m.words[1] = 0;
+        m.words[2] = 0x1000;
+        m.words[3] = 0;
+        m.words[4] = 0x1000;
+        m.words[5] = 0;
+        m.words[6] = 0;
+        m.words[7] = 0;
+        rotY = entry.rotY;
+        matrixRotateZ(mp, entry.rotZ);
+        matrixRotateY(mp, rotY);
+        matrixTransformVec(mp, &vel, &vel);
+        vel.vx *= entry.dir * facing;
+        if (i < 14) {
+            child = NEW_ENTITY(0x1D4, MetalGarurumonSpecial3Hitbox_init, this, (Vec3 *)&pos, (Vec3 *)vp, i < 8);
+        } else {
+            vel.vx = facing << 5;
+            vel.vy = 0;
+            vel.vz = 0;
+            child = NEW_ENTITY(0xC8, func_8009CE8C, this, (Vec3 *)&pos, (Vec3 *)vp);
+        }
+        Fighter_addEntity(this, child);
+    }
+    Fighter_addGauge(this, -0x10000);
+    Fighter_playSound(this, 0xB7);
+}
 
 extern EntityVtable D_8006A284;
 

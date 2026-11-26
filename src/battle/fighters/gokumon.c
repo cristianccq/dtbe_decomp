@@ -816,7 +816,100 @@ void GokumonSpecial1Hitbox_tick(GokumonSpecial1Hitbox *this) {
     }
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/gokumon", GokumonSpecial1Hitbox_draw);
+/* Draws Gokumon's special move 1 hitbox: builds an elongated rotated quad from size/facing/animFrame and
+ * renders 3 stepped Z-rotations with two translucent buildPolyFT4 passes per step. */
+void GokumonSpecial1Hitbox_draw(GokumonSpecial1Hitbox *this, Camera *camera) {
+    SVECTOR corners[4];
+    PolyFT4Shape shape;
+    MatrixWords m;
+    MATRIX *mp;
+    void *packet;
+    u_long *ot;
+    s32 zShift;
+    s32 facing;
+    s32 size;
+    s32 c;
+    s32 vramY;
+    s32 tpage0;
+    s32 tpage1;
+    s32 step;
+    PolyFT4Shape *sp;
+    s32 i;
+    s32 width;
+    u8 u;
+
+    mp = &m.m;
+    packet = PRIM_BUFFER_FREE;
+    corners[0].vz = 0;
+    corners[1].vz = 0;
+    corners[2].vy = 0;
+    corners[2].vz = 0;
+    corners[3].vy = 0;
+    corners[3].vz = 0;
+    shape.flags = 0;
+    shape.corners[0] = &corners[0];
+    shape.corners[1] = &corners[1];
+    shape.corners[2] = &corners[2];
+    shape.corners[3] = &corners[3];
+    UV_BYTES(shape.uv0)[1] = UV_BYTES(shape.uv1)[1] = 0;
+    UV_BYTES(shape.uv2)[1] = UV_BYTES(shape.uv3)[1] = 0x3F;
+    facing = this->facing;
+    size = this->size;
+    width = size * facing;
+    {
+        s16 neg = -size;
+        corners[1].vy = corners[0].vy = neg;
+    }
+    u = ((u8)this->animFrame << 5) + 0x40;
+    UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = u;
+    UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = u + 0x1F;
+    corners[2].vx = -(width >> 2);
+    corners[3].vx = width >> 2;
+    c = this->brightness;
+    corners[0].vx = -(width / 3);
+    corners[1].vx = width / 3;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+    vramY = this->vramY;
+    shape.color = c | (c << 8) | (c << 16);
+    shape.clut = ((vramY + 0xFC) << 6) | 0x1C;
+    {
+        VECTOR *pos = &this->position;
+        s32 x = pos->vx;
+        s32 y = pos->vy;
+        s32 z = pos->vz;
+
+        m.words[0] = ONE;
+        m.words[1] = 0;
+        m.words[2] = ONE;
+        m.words[3] = 0;
+        m.words[4] = ONE;
+        m.m.t[0] = x;
+        m.m.t[1] = y;
+        m.m.t[2] = z;
+    }
+    matrixRotateZ(mp, -(facing << 6));
+    step = facing * 3;
+    {
+        s32 low = (vramY & 0x100) >> 4;
+        s32 base0 = low | 0x27;
+        s32 base1 = low | 0x47;
+        tpage0 = base0 | ((vramY & 0x200) << 2);
+        tpage1 = base1 | ((vramY & 0x200) << 2);
+    }
+    sp = &shape;
+    for (i = 0; i < 3; i++) {
+        setModelMatrix(&m.m);
+        matrixRotateZ(&m.m, step << 6);
+        shape.tpage = tpage0;
+        shape.flags = (shape.flags & ~3) | 9;
+        packet = buildPolyFT4(sp, packet, ot, zShift + 1);
+        shape.tpage = tpage1;
+        shape.flags = (shape.flags & ~3) | 10;
+        packet = buildPolyFT4(sp, packet, ot, zShift);
+    }
+    PRIM_BUFFER_FREE = packet;
+}
 
 static inline void copySVectorWords(SVECTOR *dst, SVECTOR *src) {
     s32 w0 = ((s32 *)src)[0];

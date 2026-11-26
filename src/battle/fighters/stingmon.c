@@ -1517,7 +1517,86 @@ s16 func_800B36B4(StingmonSpecial3Hitbox *this, s32 index) {
 INCLUDE_RODATA("game/nonmatchings/fighters/stingmon", D_8006BA90);
 INCLUDE_RODATA("game/nonmatchings/fighters/stingmon", D_8006BAB0);
 
-INCLUDE_ASM("game/nonmatchings/fighters/stingmon", StingmonSpecial3Hitbox_draw);
+extern SVECTOR D_8006BA90[4];
+extern SVECTOR D_8006BAB0[4];
+
+void StingmonSpecial3Hitbox_draw(StingmonSpecial3Hitbox *this, Camera *camera) {
+    MatrixWords m;
+    PolyFT4Shape shape;
+    s32 i;
+    s32 scale;
+    u16 vramY;
+
+    i = 0;
+    scale = (u16)this->unkA8;
+    m.m.t[0] = 0;
+    m.m.t[1] = 0;
+    m.m.t[2] = 0;
+    m.words[1] = 0;
+    m.words[3] = 0;
+    m.words[0] = scale;
+    m.words[2] = scale;
+    m.words[4] = scale;
+    setTranslation(m.m.t, &this->unkBC);
+    {
+        MATRIX *mat = &m.m;
+        setModelMatrix(mat);
+    }
+
+    shape.corners[0] = &D_8006BA90[0];
+    shape.corners[1] = &D_8006BA90[1];
+    shape.corners[2] = &D_8006BA90[2];
+    shape.corners[3] = &D_8006BA90[3];
+    shape.color = 0x808080;
+    UV_BYTES(shape.uv1)[1] = UV_BYTES(shape.uv0)[1] = 0x80;
+    UV_BYTES(shape.uv0)[0] = 0;
+    UV_BYTES(shape.uv1)[0] = 0x1F;
+    UV_BYTES(shape.uv2)[0] = 0;
+    UV_BYTES(shape.uv2)[1] = 0x9F;
+    UV_BYTES(shape.uv3)[0] = 0x1F;
+    UV_BYTES(shape.uv3)[1] = 0x9F;
+    shape.flags = 8;
+    vramY = this->vramY;
+    shape.tpage = getTPage(0, 0, 0x1C0, vramY);
+    shape.clut = getClut(0x1C0, vramY + 0xFE);
+    PRIM_BUFFER_FREE = buildPolyFT4(&shape, PRIM_BUFFER_FREE, camera->ot.slots, camera->zShift);
+
+    shape.corners[0] = &D_8006BAB0[0];
+    shape.corners[1] = &D_8006BAB0[1];
+    shape.corners[2] = &D_8006BAB0[2];
+    shape.corners[3] = &D_8006BAB0[3];
+    UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = 0;
+    UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = 0xF;
+    UV_BYTES(shape.uv0)[1] = UV_BYTES(shape.uv1)[1] = 0xD0;
+    UV_BYTES(shape.uv2)[1] = UV_BYTES(shape.uv3)[1] = 0xDF;
+    shape.tpage = getTPage(0, 1, 0x200, 0x100);
+    shape.clut = getClut(0x200, 0x1FF);
+    m.words[0] = 0x1000;
+    m.words[2] = 0x1000;
+    m.words[4] = 0x1000;
+    m.words[1] = 0;
+    m.words[3] = 0;
+    m.m.t[0] = 0;
+    m.m.t[1] = 0;
+    m.m.t[2] = 0;
+    shape.flags = (shape.flags & ~3) | 9;
+
+    for (; i < this->unk92; i++) {
+        u32 s = (u16)this->unk1CC[i];
+        m.words[1] = 0;
+        m.words[3] = 0;
+        m.words[0] = s;
+        m.words[2] = s;
+        m.words[4] = s;
+        setTranslation(m.m.t, (Vec3 *)&this->unkCC[i]);
+        {
+            MATRIX *mat = &m.m;
+            setModelMatrix(mat);
+        }
+        shape.color = 0x402000 | this->unk96[i];
+        PRIM_BUFFER_FREE = buildPolyFT4(&shape, PRIM_BUFFER_FREE, camera->ot.slots, camera->zShift);
+    }
+}
 
 /* The special move 3's effect: six rings of nine points, each ring twice the size of the previous one and 64 further
  * back, with shades from 0x80 down by 21. */

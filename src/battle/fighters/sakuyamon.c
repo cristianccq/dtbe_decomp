@@ -1863,7 +1863,108 @@ INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A8C24);
 INCLUDE_RODATA("game/nonmatchings/fighters/sakuyamon", D_8006ACC4);
 INCLUDE_RODATA("game/nonmatchings/fighters/sakuyamon", D_8006ACCC);
 
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A8F80);
+extern const u8 D_8006ACC4[];
+extern const u8 D_8006ACCC[];
+
+static inline void setIdentityAtSK(MatrixWords *m, VECTOR *pos, s32 one) {
+    s32 x = pos->vx;
+    s32 y = pos->vy;
+    s32 z = pos->vz;
+    m->words[0] = one;
+    m->words[1] = 0;
+    m->words[2] = one;
+    m->words[3] = 0;
+    m->words[4] = one;
+    m->m.t[0] = x;
+    m->m.t[1] = y;
+    m->m.t[2] = z;
+}
+
+void func_800A8F80(Entity *arg, s32 cameraArg) {
+    SakuyamonSpecial3Effect *this = (SakuyamonSpecial3Effect *)arg;
+    Camera *camera = (Camera *)cameraArg;
+    s32 scales[5];
+    SVECTOR corners[4];
+    PolyFT4Shape shape;
+    MatrixWords matrix;
+    s32 angles[2];
+    u8 *packet;
+    u_long *ot;
+    s32 zShift;
+    s32 unk2C;
+    s32 unk30;
+    s32 unk34;
+    u32 r;
+    s32 unk3C;
+    s32 vramY;
+    s16 y;
+    u8 u, v;
+    s32 i, j;
+    s32 one = 0x1000;
+
+    packet = PRIM_BUFFER_FREE;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+    unk2C = this->unk2C;
+    unk30 = this->unk30;
+    unk34 = this->unk34;
+    memset(scales, 0, sizeof(scales));
+
+    scales[0] = (unk2C * 63) >> 6;
+    scales[1] = (unk2C * 44) >> 6;
+    scales[2] = (unk2C * 18) >> 6;
+    y = -unk30;
+    r = unk34 + 0x1000;
+    corners[0].vx = 0;
+    corners[0].vy = y;
+    corners[1].vx = r >> 1;
+    corners[1].vy = y;
+    corners[1].vz = (r * 0xDDB) >> 12;
+    corners[0].vz = r;
+    corners[2].vx = 0;
+    corners[2].vy = 0;
+    corners[2].vz = one;
+    corners[3].vx = 0x800;
+    corners[3].vy = 0;
+    corners[3].vz = 0xDDB;
+    shape.corners[0] = &corners[0];
+    shape.corners[1] = &corners[1];
+    shape.corners[2] = &corners[2];
+    shape.corners[3] = &corners[3];
+    shape.color = 0x4C102C;
+
+    unk3C = this->unk3C;
+    vramY = this->vramY;
+    u = D_8006ACC4[unk3C];
+    v = D_8006ACCC[unk3C];
+    shape.clut = getClut(0x1C0, vramY + 0xFD);
+    UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = u;
+    UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = u + 0x1F;
+    UV_BYTES(shape.uv0)[1] = UV_BYTES(shape.uv1)[1] = v;
+    UV_BYTES(shape.uv2)[1] = UV_BYTES(shape.uv3)[1] = v + 0x1F;
+    shape.tpage = (((vramY & 0x100) >> 4) | 0x27) | ((vramY & 0x200) << 2);
+    shape.flags = 9;
+
+    setIdentityAtSK(&matrix, &this->position, one);
+    angles[0] = (-this->unk38) >> 1;
+    angles[1] = -angles[0];
+
+    for (i = 0; i < 5; i++) {
+        u16 s = scales[i];
+        matrix.words[1] = 0;
+        matrix.words[3] = 0;
+        matrix.words[0] = s;
+        matrix.words[2] = s;
+        matrix.words[4] = s;
+        matrixRotateY(&matrix.m, angles[i & 1]);
+        for (j = 0; j < 12; j++) {
+            matrixRotateY(&matrix.m, 0x155);
+            setModelMatrix(&matrix.m);
+            packet = buildPolyFT4(&shape, packet, ot, zShift);
+        }
+    }
+    PRIM_BUFFER_FREE = packet;
+}
 
 INCLUDE_RODATA("game/nonmatchings/fighters/sakuyamon", D_8006ACD4);
 

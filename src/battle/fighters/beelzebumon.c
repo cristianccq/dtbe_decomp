@@ -600,7 +600,7 @@ void BeelzebumonThrowEffect_tick(BeelzebumonThrowEffect *this, s32 arg) {
     }
 }
 
-extern MATRIX D_800108B4;
+extern const MATRIX D_800108B4;
 
 void BeelzebumonThrowEffect_draw(BeelzebumonThrowEffect *this, Camera *camera) {
     MATRIX mat;
@@ -837,7 +837,7 @@ void func_80096AA8(Unk800969E0 *this) {
     }
 }
 
-extern MATRIX D_800108B4;
+extern const MATRIX D_800108B4;
 
 void func_80096B54(Unk800969E0 *this, Camera *camera) {
     SVECTOR corners[4];
@@ -1270,7 +1270,7 @@ void BeelzebumonSpecial2Particle_tick(BeelzebumonSpecial2Particle *this) {
     }
 }
 
-extern MATRIX D_800108B4;
+extern const MATRIX D_800108B4;
 
 /* Draws the particle: a square of side 2 * size around the origin, placed at the sprite's position by a copy of the
  * matrix D_800108B4 translated there, with buildPolyFT4. */
@@ -1404,7 +1404,63 @@ void func_800981BC(Unk80097FA0 *this, void *arg) {
     this->unkAC++;
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/beelzebumon", func_800983FC);
+void func_800983FC(Unk80097FA0 *this, Camera *camera) {
+    SVECTOR corners[4];
+    MATRIX m0;
+    MATRIX m1;
+    PolyFT4Shape shape;
+    u_long *ot;
+    s32 zShift;
+    u8 *packet;
+    s32 size;
+    s32 color;
+
+    packet = PRIM_BUFFER_FREE;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+
+    size = this->unk9C;
+    m0 = D_800108B4;
+    matrixTranslate(&m0, this->position.vx, this->position.vy, this->position.vz);
+    matrixRotateY(&m0, 0x71);
+    matrixRotateX(&m0, this->unkA0);
+
+    m1 = D_800108B4;
+    matrixTranslate(&m1, this->position.vx, this->position.vy, this->position.vz);
+    matrixRotateY(&m1, 0x71);
+    matrixRotateX(&m1, -this->unkA0);
+
+    corners[0].vx = corners[2].vx = 0;
+    corners[1].vx = corners[3].vx = 0;
+    corners[0].vy = corners[1].vy = -size;
+    corners[2].vy = corners[3].vy = size;
+    corners[0].vz = corners[2].vz = size;
+    corners[1].vz = corners[3].vz = -size;
+    shape.corners[0] = &corners[0];
+    shape.corners[1] = &corners[1];
+    shape.corners[2] = &corners[2];
+    shape.corners[3] = &corners[3];
+    UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = 0;
+    UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = 0x3F;
+    UV_BYTES(shape.uv0)[1] = UV_BYTES(shape.uv1)[1] = 0xA0;
+    UV_BYTES(shape.uv2)[1] = UV_BYTES(shape.uv3)[1] = 0xDF;
+    shape.flags = 9;
+    color = this->unkA4;
+    shape.color = color | (color << 8) | (color << 16);
+    shape.clut = getClut(0x1C0, (u16)this->vramY + 0xFB);
+    shape.tpage = getTPage(0, 1, 0x1C0, (u16)this->vramY);
+
+    setModelMatrix(&m0);
+    packet = buildPolyFT4(&shape, packet, ot, zShift);
+
+    UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = 0x40;
+    UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = 0x7F;
+    shape.clut = getClut(0x1C0, (u16)this->vramY + 0xFA);
+    setModelMatrix(&m1);
+    packet = buildPolyFT4(&shape, packet, ot, zShift);
+
+    PRIM_BUFFER_FREE = packet;
+}
 
 /* Creates an entity of func_80098720's class (0x44 bytes) with g++'s new, and hands it to entityAddSibling. */
 void func_800986C0(Unk80097FA0 *this) {

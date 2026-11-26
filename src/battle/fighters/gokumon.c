@@ -598,7 +598,108 @@ void func_800C0344(Unk800C0298 *this) {
 INCLUDE_RODATA("game/nonmatchings/fighters/gokumon", D_8006CD1C);
 INCLUDE_RODATA("game/nonmatchings/fighters/gokumon", D_8006CD5C);
 
-INCLUDE_ASM("game/nonmatchings/fighters/gokumon", func_800C0434);
+extern SVECTOR D_8006CD1C[2][4];
+extern const u8 D_8006CD5C[4];
+
+/* Draws Unk800C0298 (method at 0x14 of virtual table D_8006CE24): walks count points backwards from newest, fading
+ * brightness from 16 * count by i / count, and draws two buildPolyFT4 passes (translucency 1 and 2) at each point's
+ * position using corners D_8006CD1C[unkA8] and u range D_8006CD5C[unkA8 .. unkA8 + 1]. */
+void func_800C0434(Unk800C0298 *this, Camera *camera) {
+    PolyFT4Shape shape;
+    MatrixWords m;
+    u16 clut0;
+    u16 clut1;
+    u16 tpage0;
+    u16 tpage1;
+    s32 count;
+    s32 total;
+    s32 maxColor;
+    s32 newest;
+    s32 idx;
+    s32 vramY;
+    PolyFT4Shape *sp;
+    void *packet;
+    u_long *ot;
+    s32 zShift;
+    s32 i;
+
+    count = this->count;
+    if (count <= 0) {
+        return;
+    }
+    shape.flags = 0;
+    {
+        SVECTOR (*tbl)[4] = D_8006CD1C;
+
+        packet = PRIM_BUFFER_FREE;
+        newest = this->newest;
+        i = 0;
+        UV_BYTES(shape.uv1)[1] = 0x80;
+        UV_BYTES(shape.uv0)[1] = 0x80;
+        UV_BYTES(shape.uv3)[1] = 0xBF;
+        UV_BYTES(shape.uv2)[1] = 0xBF;
+        idx = this->unkA8;
+        {
+            SVECTOR *corners = tbl[idx];
+
+            shape.corners[0] = &corners[0];
+            shape.corners[1] = &corners[1];
+            shape.corners[2] = &corners[2];
+            shape.corners[3] = &corners[3];
+        }
+    }
+    UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = D_8006CD5C[idx];
+    {
+        u8 u1 = D_8006CD5C[idx + 1] - 1;
+
+        UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = u1;
+    }
+    vramY = this->vramY;
+    {
+        s32 off = idx - 0xFE;
+
+        clut0 = getClut(0x180, vramY - off);
+    }
+    clut1 = getClut(0x180, vramY + 0xFF);
+    tpage0 = getTPage(0, 1, 0x180, vramY);
+    tpage1 = getTPage(0, 2, 0x180, vramY);
+    maxColor = count << 4;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+    total = count;
+    for (; i < count; i++) {
+        Unk800C0298Point *point = &this->trail[newest];
+        s32 x = point->position.vx;
+        s32 y = point->position.vy;
+        s32 z = point->position.vz;
+        s32 c;
+
+        sp = &shape;
+        m.words[0] = ONE;
+        m.words[1] = 0;
+        m.words[2] = ONE;
+        m.words[3] = 0;
+        m.words[4] = ONE;
+        m.m.t[0] = x;
+        m.m.t[1] = y;
+        m.m.t[2] = z;
+        setModelMatrix(&m.m);
+        c = (maxColor * (count - i)) / total;
+        shape.color = c | (c << 8) | (c << 16);
+        shape.clut = clut0;
+        shape.tpage = tpage0;
+        shape.flags = (shape.flags & ~3) | 9;
+        packet = buildPolyFT4(sp, packet, ot, zShift + 1);
+        shape.clut = clut1;
+        shape.tpage = tpage1;
+        shape.flags = (shape.flags & ~3) | 10;
+        packet = buildPolyFT4(sp, packet, ot, zShift);
+        if (--newest < 0) {
+            newest += 8;
+        }
+    }
+    PRIM_BUFFER_FREE = packet;
+}
 
 INCLUDE_RODATA("game/nonmatchings/fighters/gokumon", D_8006CD60);
 

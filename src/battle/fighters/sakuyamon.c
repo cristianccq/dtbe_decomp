@@ -1275,7 +1275,92 @@ Unk800A7694 *func_800A7694(Unk800A7694 *this, s32 handle, s32 side) {
 
 INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A7768);
 
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A79D0);
+void func_800A79D0(Unk800A7694 *this, Camera *camera) {
+    SVECTOR corners0[4];
+    SVECTOR corners1[4];
+    PolyFT4Shape shape0;
+    PolyFT4Shape shape1;
+    u8 *packet;
+    u_long *ot;
+    s32 zShift;
+    s32 z;
+    s32 u;
+    s32 i;
+    s32 vramY;
+
+    packet = PRIM_BUFFER_FREE;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+    z = 0x30;
+    if (this->side != 0) {
+        z = 0x10;
+    }
+
+    corners0[0].vx = -0x20;
+    corners0[0].vy = -0x20;
+    corners0[0].vz = -z;
+    corners0[1].vx = 0x20;
+    corners0[1].vy = -0x20;
+    corners0[1].vz = -z;
+    corners0[2].vx = -0x20;
+    corners0[2].vy = 0x40;
+    corners0[2].vz = -z;
+    corners0[3].vx = 0x20;
+    corners0[3].vy = 0x40;
+    corners0[3].vz = -z;
+
+    corners1[0].vx = -0x20;
+    corners1[0].vy = -0x20;
+    corners1[0].vz = z;
+    corners1[1].vx = 0x20;
+    corners1[1].vy = -0x20;
+    corners1[1].vz = z;
+    corners1[2].vx = -0x20;
+    corners1[2].vy = 0x40;
+    corners1[2].vz = z;
+    corners1[3].vx = 0x20;
+    corners1[3].vy = 0x40;
+    corners1[3].vz = z;
+
+    shape0.flags = 0;
+    shape1.flags = 0;
+    shape0.corners[0] = &corners0[0];
+    shape0.corners[1] = &corners0[1];
+    shape0.corners[2] = &corners0[2];
+    shape0.corners[3] = &corners0[3];
+    shape0.color = 0x808080;
+
+    u = ((this->side << 7) + (this->unk64 << 4)) & 0xFF;
+    vramY = this->vramY;
+    UV_BYTES(shape0.uv0)[0] = UV_BYTES(shape0.uv2)[0] = u;
+    UV_BYTES(shape0.uv1)[0] = UV_BYTES(shape0.uv3)[0] = u + 0xF;
+    UV_BYTES(shape0.uv0)[1] = UV_BYTES(shape0.uv1)[1] = 0xE0;
+    UV_BYTES(shape0.uv2)[1] = UV_BYTES(shape0.uv3)[1] = 0xF7;
+    shape0.clut = getClut(0x1C0, vramY + 0xF8);
+    shape0.tpage = (((vramY & 0x100) >> 4) | 0x27) | ((vramY & 0x200) << 2);
+
+    shape1 = shape0;
+    shape1.corners[0] = &corners1[0];
+    shape1.corners[1] = &corners1[1];
+    shape1.corners[2] = &corners1[2];
+    shape1.corners[3] = &corners1[3];
+
+    setModelMatrix(&this->unk1C.m);
+    for (i = 0; i < 2; i++) {
+        packet = buildPolyFT4(&shape0, packet, ot, zShift);
+        packet = buildPolyFT4(&shape1, packet, ot, zShift);
+    }
+
+    u = (u + 0x40) & 0xFF;
+    UV_BYTES(shape0.uv0)[0] = UV_BYTES(shape0.uv2)[0] = UV_BYTES(shape1.uv0)[0] = UV_BYTES(shape1.uv2)[0] = u;
+    UV_BYTES(shape0.uv1)[0] = UV_BYTES(shape0.uv3)[0] = UV_BYTES(shape1.uv1)[0] = UV_BYTES(shape1.uv3)[0] = u + 0xF;
+    setModelMatrix(&this->unk3C.m);
+    for (i = 0; i < 2; i++) {
+        packet = buildPolyFT4(&shape0, packet, ot, zShift);
+        packet = buildPolyFT4(&shape1, packet, ot, zShift);
+    }
+    PRIM_BUFFER_FREE = packet;
+}
 
 /* Builds the entity func_800A5F94 spawns: a hit part (damage word 0x800001, radius 0) at position on the fighter's
  * side, starting from point. */

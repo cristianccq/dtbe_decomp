@@ -1885,7 +1885,69 @@ void func_800A9944(Unk800A9944 *this, void *arg) {
     }
 }
 
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A9998);
+extern SVECTOR D_8006ACD4[9][5];
+
+static inline void setTranslationSK(long *dst, Vec3 *src) {
+    s32 x = src->vx;
+    s32 y = src->vy;
+    s32 z = src->vz;
+    dst[0] = x;
+    dst[1] = y;
+    dst[2] = z;
+}
+
+void func_800A9998(Entity *arg, s32 cameraArg) {
+    Unk800A9944 *this = (Unk800A9944 *)arg;
+    Camera *camera = (Camera *)cameraArg;
+    MATRIX m;
+    MATRIX *mp = &m;
+    PolyFT4Shape shape;
+    u8 *packet;
+    u_long *ot;
+    s32 shift;
+    s32 scale;
+    s32 shade;
+    s32 r, g, b;
+    s32 i, j;
+
+    packet = PRIM_BUFFER_FREE;
+    scale = this->unkB8 + this->unkC0;
+    m = camera->view->rotation;
+    shade = this->unkBC + this->unkC4;
+    setTranslationSK(m.t, &this->position);
+    ot = camera->ot.slots;
+    shift = camera->zShift;
+    matrixScale(mp, scale, scale, scale >> 1);
+    setModelMatrix(mp);
+
+    r = (this->color.r * shade) >> 8;
+    g = (this->color.g * shade) >> 8;
+    b = (this->color.b * shade) >> 8;
+    shape.flags = 9;
+    shape.clut = this->clut;
+    shape.tpage = (((this->vramY & 0x100) >> 4) | 0x27) | (((u16)this->vramY & 0x200) << 2);
+    shape.color = r | (g << 8) | (b << 16);
+
+    for (i = 0; i < 8; i++) {
+        for (j = 0; j < 4; j++) {
+            u8 u0, u1, v0, v1;
+            shape.corners[0] = &D_8006ACD4[i][j];
+            shape.corners[1] = &D_8006ACD4[i][j + 1];
+            shape.corners[2] = &D_8006ACD4[i + 1][j];
+            shape.corners[3] = &D_8006ACD4[i + 1][j + 1];
+            u0 = this->unkA4[j];
+            v0 = this->unkA9[i];
+            u1 = this->unkA4[j + 1];
+            v1 = this->unkA9[i + 1];
+            UV_BYTES(shape.uv0)[0] = UV_BYTES(shape.uv2)[0] = u0;
+            UV_BYTES(shape.uv1)[0] = UV_BYTES(shape.uv3)[0] = u1;
+            UV_BYTES(shape.uv0)[1] = UV_BYTES(shape.uv1)[1] = v0;
+            UV_BYTES(shape.uv2)[1] = UV_BYTES(shape.uv3)[1] = v1;
+            packet = buildPolyFT4Windowed(&shape, packet, ot, shift, (RECT *)&this->unk98);
+        }
+    }
+    PRIM_BUFFER_FREE = packet;
+}
 
 /* The class func_800A9C4C constructs (virtual table D_8006AE64). */
 typedef struct Unk800A9C4C {

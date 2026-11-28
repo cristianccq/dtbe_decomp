@@ -859,11 +859,91 @@ void TransformFlash_draw(TransformFlash *this, Camera *camera) {
 
 INCLUDE_ASM("game/nonmatchings/game_0g", func_800C4F74);
 
-INCLUDE_ASM("game/nonmatchings/game_0g", func_800C52C4);
+/* Updates the transformed ring effect state (0: grow & rise, 1: ease scale, 2/3: fade out & delete). */
+void func_800C52C4(Unk800C4F74 *this) {
+    BattleSide *side = this->owner;
+    Fighter *fighter = side->current;
+
+    switch (this->unk498) {
+    case 0:
+        *(s32 *)&this->unk480[0] += ((*(s32 *)&this->unk480[4] - *(s32 *)&this->unk480[0]) * this->unk49C) / 16;
+        this->unk488 += 8;
+        if (this->unk49C >= 17) {
+            this->unk498 = 1;
+        }
+        break;
+    case 1:
+        this->unk488 += (this->unk48C - this->unk488) >> 2;
+        if (*(s32 *)&this->unk18[0] != 0) {
+            if (this->unk49C >= 51) {
+                this->unk48C <<= 1;
+                this->unk498 = 2;
+            }
+            goto update_pos;
+        } else {
+            if (this->unk49C >= 21) {
+                this->unk498 = 3;
+            }
+            goto update_pos;
+        }
+    case 2:
+        this->unk488 += (this->unk48C - this->unk488) >> 3;
+    case 3:
+        this->unk494 -= 8;
+        if (this->unk494 <= 0) {
+            entityDelete(&this->entity);
+            return;
+        }
+        break;
+    }
+update_pos:
+    Fighter_getPosition(fighter, &this->position);
+    this->position.vy -= *(s32 *)&this->unk480[0];
+    this->unk490 = (this->unk490 + 1) & 7;
+    this->unk4A0 += 6;
+    this->unk49C++;
+}
 
 INCLUDE_ASM("game/nonmatchings/game_0g", func_800C5480);
 
-INCLUDE_ASM("game/nonmatchings/game_0g", Trail_init);
+extern EntityVtable TRAIL_VTABLE;
+void Trail_setPoints(Trail *this, TrailPoint *entries, s32 count);
+
+/* Constructs a Trail entity attached to fighter, clearing all 4x32 sample ring buffers. */
+Entity *Trail_init(Entity *entity, Fighter *fighter, TrailPoint *entries, s32 count, s32 length, s32 recordFrames) {
+    Trail *this = (Trail *)entity;
+    s32 i;
+    s32 next;
+    u32 colBase;
+    u32 posBase;
+
+    entityInit(&this->entity, 0);
+    this->entity.vtable = &TRAIL_VTABLE;
+    this->fighter = fighter;
+    this->head = -1;
+    this->length = (length > 0x20) ? 0x20 : length;
+    this->recordTimer = recordFrames;
+    this->validCount = 0;
+    Trail_setPoints(this, entries, count);
+    i = 0;
+    colBase = (u32)&this->samples[0][0].color;
+    posBase = (u32)this->samples;
+    for (; i < 4; i = next) {
+        s32 j;
+        next = i + 1;
+
+        for (j = 0; j < 32; j++) {
+            s32 off = i * sizeof(TrailSample[32]) + j * sizeof(TrailSample);
+            TrailSample *s = (TrailSample *)(off + posBase);
+            u32 *c = (u32 *)(off + colBase);
+            s->x = 0;
+            s->y = 0;
+            s->z = 0;
+            *c = 0;
+        }
+    }
+    return &this->entity;
+}
 
 /* The trail's tick: records (Trail_record) while recordTimer runs, which ends at once when the fighter stops
  * attacking or is held; then shortens, and is deleted below 3 samples. Its colors fade every frame it lives. */

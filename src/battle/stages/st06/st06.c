@@ -464,12 +464,43 @@ void func_800D45BC(Unk800D4468 *this, s32 arg) {
 
 INCLUDE_ASM("st06/nonmatchings/st06", func_800D46C4);
 
-/* Not matched yet. A draft is 3 differences off (the order of two temporaries and of the operands of one addu):
- * i = 0 and x = -0x2000 have to be set after entityInit, so that they live in caller-saved registers; the base
- * of the rings (this->points[0]) is kept in a pointer and the next i and x are worked out before the row's loop
- * (as in St02Terminal_clearGrid), but no order of those temporaries, of the row pointer's expression or of its
- * declaration gave the game's $a1/$a2 and addu order. */
-INCLUDE_ASM("st06/nonmatchings/st06", func_800D4958);
+extern EntityVtable D_800D3AFC;
+
+/* Constructs an Unk800D4958 entity: 18 rings of 12 points each, x from -0x2000 by 0x3C3 and z from -0x5D1 by 0x5D1. */
+Unk800D4958 *func_800D4958(Unk800D4958 *this) {
+    s32 x;
+    s32 i;
+    u32 rowBase;
+
+    entityInit(&this->entity, 0);
+    x = -0x2000;
+    i = 0;
+    rowBase = (u32)this->points[0];
+    this->entity.vtable = &D_800D3AFC;
+    this->level = 0;
+    this->scrollX = 0;
+    this->hsv.hue = 0;
+    this->hsv.saturation = 0xFF;
+    this->hsv.value = 0;
+    while (i < 18) {
+        s32 z = -0x5D1;
+        s32 nextI = i + 1;
+        s32 nextX = x + 0x3C3;
+        St06RingPoint *p = (St06RingPoint *)((i * sizeof(St06RingPoint[12])) + rowBase);
+        s32 j;
+
+        for (j = 11; j >= 0; j--) {
+            p->position.vx = x;
+            p->position.vy = 0;
+            p->position.vz = z;
+            p++;
+            z += 0x5D1;
+        }
+        x = nextX;
+        i = nextI;
+    }
+    return this;
+}
 
 INCLUDE_ASM("st06/nonmatchings/st06", func_800D4A00);
 
@@ -595,7 +626,25 @@ Unk800D5040 *func_800D5040(Unk800D5040 *this) {
     return this;
 }
 
-INCLUDE_ASM("st06/nonmatchings/st06", func_800D508C);
+Unk800D5164 *func_800D5164(Unk800D5164 *this, s32 arg);
+
+/* Tick of Unk800D5040: spawns alternating Unk800D5164 entities as unk20 reaches 0x800 and deletes itself when unk24 expires. */
+void func_800D508C(Unk800D5040 *this, Fight *stage) {
+    this->unk20 += this->unk24;
+    if (this->unk20 >= 0x800) {
+        this->unk20 -= 0x800;
+        Fight_addStageEntity(stage, NEW_ENTITY(sizeof(Unk800D5164), func_800D5164, this->unk1C));
+        this->unk1C = (u32)this->unk1C < 1;
+    }
+    this->unk24--;
+    if (this->unk24 <= 0) {
+        do {
+            if (this != NULL) {
+                (&this->entity)->vtable->destroy.func((u8 *)&this->entity + (&this->entity)->vtable->destroy.delta, DESTROY_DELETE);
+            }
+        } while (0);
+    }
+}
 
 void func_800D515C(void) {
 }

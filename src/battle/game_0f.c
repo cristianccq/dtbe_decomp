@@ -1400,8 +1400,6 @@ void func_80081FC4(FighterState *this, InputHistory *input) {
     }
 }
 
-INCLUDE_ASM("game/nonmatchings/game_0f", FighterStateAttack_init);
-
 /* An attack's state (FighterStateAttack_init, virtual table FIGHTER_STATE_ATTACK_VTABLE): a FighterState with a
  * timeout and the step function the attack runs every frame. */
 typedef struct FighterStateAttack {
@@ -1409,6 +1407,34 @@ typedef struct FighterStateAttack {
     /* 0x10 */ s32 frames; /* 240 at the start: the attack ends when they run out */
     /* 0x14 */ MemberFunction step;
 } FighterStateAttack;
+
+extern VtableEntry FIGHTER_STATE_ATTACK_VTABLE[];
+
+FighterState *FighterStateAttack_init(FighterState *this, s32 state, MemberFunction step) {
+    FighterStateAttack *attack = (FighterStateAttack *)this;
+    VirtualFunction method;
+    void (*func)();
+    s32 index;
+    s32 delta;
+    s32 offset;
+
+    func_80081A20(&attack->base, state);
+    attack->base.vtable = FIGHTER_STATE_ATTACK_VTABLE;
+    attack->step = step;
+    attack->frames = 240;
+    /* (attack->*step)(), as g++ 2.95 expands it */
+    index = attack->step.index;
+    if (index >= 0) {
+        method = (*(VirtualFunction **)((u8 *)attack + attack->step.u.vtableOffset))[index - 1];
+        func = method.entry.func;
+    } else {
+        func = attack->step.u.func;
+    }
+    delta = attack->step.delta;
+    offset = index >= 0 ? method.entry.delta + delta : delta;
+    func((u8 *)attack + offset);
+    return this;
+}
 
 /* An attack's tick: once its 240 frames run out, ends the fighter's move (its endMove slot), becomes attack idle
  * and stops no action clip (func_8007FC50 with -1); else runs the step function and, once the action clip is done,
@@ -1511,7 +1537,34 @@ FighterState *func_8008230C(FighterState *this) {
     return this;
 }
 
-INCLUDE_ASM("game/nonmatchings/game_0f", FighterStateChain_init);
+/* Turns the state, in place, into the attack chain's `state` (virtual table D_80067D94) on `step`, runs the
+ * step and plays sound 0. */
+FighterState *FighterStateChain_init(FighterState *this, s32 state, MemberFunction step) {
+    FighterStateChain *chain = (FighterStateChain *)this;
+    VirtualFunction method;
+    void (*func)();
+    s32 index;
+    s32 delta;
+    s32 offset;
+
+    FighterState_init(&chain->base, state);
+    chain->base.vtable = D_80067D94;
+    chain->step = step;
+    chain->nextQueued = 0;
+    /* (chain->*step)(), as g++ 2.95 expands it */
+    index = chain->step.index;
+    if (index >= 0) {
+        method = (*(VirtualFunction **)((u8 *)chain + chain->step.u.vtableOffset))[index - 1];
+        func = method.entry.func;
+    } else {
+        func = chain->step.u.func;
+    }
+    delta = chain->step.delta;
+    offset = index >= 0 ? method.entry.delta + delta : delta;
+    func((u8 *)chain + offset);
+    soundControlPlaySound(&SOUND_CONTROL, 0, 0);
+    return this;
+}
 
 /* The attack chain's tick: runs the step function; once the action clip is done, goes on to the next link of the
  * chain (slot 0x30) when an attack came in during this one (0x10), else ends the fighter's move (its endMove slot)

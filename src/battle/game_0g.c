@@ -478,7 +478,37 @@ typedef struct Sparkle {
     /* 0x58 */ s32 life;       /* 16 frames, counted down */
 } Sparkle; /* size 0x5C */
 
-INCLUDE_ASM("game/nonmatchings/game_0g", Sparkle_init);
+/* Constructs a sparkle of anim (9 to 11 of PARTICLE_ANIMS), virtual table SPARKLE_VTABLE, at pos moving by vel
+ * with size, color (converted to HSV, startValue copied from hsv.value) and a 16-frame life.
+ * The match depends on PARTICLE_ANIMS taken into a local first and fields copied via locals. */
+Entity *Sparkle_init(Entity *entity, Vec3 *pos, Vec3 *vel, s32 size, u32 color, s32 anim) {
+    Sparkle *this = (Sparkle *)entity;
+    SpriteAnimRow *anims;
+    s32 x, y, z;
+    s32 dx, dy, dz;
+
+    entityInit(&this->entity, 0);
+    anims = PARTICLE_ANIMS;
+    spriteAnimInit(&this->sprite, &anims[anim], 0);
+    this->entity.vtable = &SPARKLE_VTABLE;
+    x = pos->vx;
+    y = pos->vy;
+    z = pos->vz;
+    this->sprite.position.vx = x;
+    this->sprite.position.vy = y;
+    this->sprite.position.vz = z;
+    dx = vel->vx;
+    dy = vel->vy;
+    dz = vel->vz;
+    this->velocity.vx = dx;
+    this->velocity.vy = dy;
+    this->velocity.vz = dz;
+    this->sprite.size = size;
+    this->life = 16;
+    convertRgbToHsv(&this->hsv, color & 0xFF, (color >> 8) & 0xFF, (color >> 16) & 0xFF);
+    this->startValue = this->hsv.value;
+    return entity;
+}
 
 /* The tick of Sparkle_init's classes: the sprite grows, drifts by its velocity, slows down by 1/8 each frame and
  * rises at random, its brightness fades with its life and it is deleted when the 16 frames are over.
@@ -615,7 +645,39 @@ INCLUDE_ASM("game/nonmatchings/game_0g", func_800C3ED0);
 INCLUDE_RODATA("game/nonmatchings/game_0g", CUTIN_CLUT_RECTS);
 INCLUDE_RODATA("game/nonmatchings/game_0g", CUTIN_IMAGE_RECTS);
 
-INCLUDE_ASM("game/nonmatchings/game_0g", CutIn_init);
+extern EntityVtable CUTIN_VTABLE;
+extern RECT CUTIN_CLUT_RECTS[];
+extern RECT CUTIN_IMAGE_RECTS[];
+
+/* Constructs an evolution cut-in for side (0 left, 1 right), virtual table CUTIN_VTABLE, setting up its TIM
+ * rects, dithering and initial y (28 or 60 after setting 44).
+ * The match depends on CUTIN_CLUT_RECTS taken into a local and y set via an if statement. */
+CutIn *CutIn_init(CutIn *this, s32 side) {
+    TIM_IMAGE tim;
+    s32 y;
+    RECT *rects;
+
+    entityInit(&this->entity, 0);
+    this->entity.vtable = &CUTIN_VTABLE;
+    spriteInit(&this->sprite);
+    this->alpha = 0xFF;
+    this->side = side;
+    this->slide = 0;
+    this->frame = 0;
+    tim.mode = 8;
+    rects = CUTIN_CLUT_RECTS;
+    tim.crect = &rects[side];
+    tim.prect = &CUTIN_IMAGE_RECTS[side];
+    spriteSetTim(&this->sprite, &tim, 0);
+    this->sprite.y = 44;
+    this->sprite.flags |= SPRITE_DITHER;
+    y = 28;
+    if (side != 0) {
+        y = 60;
+    }
+    this->sprite.y = y;
+    return this;
+}
 
 INCLUDE_ASM("game/nonmatchings/game_0g", CutIn_tick);
 

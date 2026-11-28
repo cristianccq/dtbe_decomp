@@ -1178,7 +1178,22 @@ void updateItemEffect(Fighter *this) {
     }
 }
 
-INCLUDE_ASM("game/nonmatchings/game_0i", func_800C9938);
+/* Overrides the fighter's controller input during item effect 3 when the round is still active: while timer & 4,
+ * forces 0x8000 if timer & 2, else 0x2000. */
+u32 func_800C9938(Fighter *this, u32 buttons) {
+    if (this->itemEffect.kind != 3) {
+        return buttons;
+    } else if (Fight_isRoundOver(Fighter_getScene(this))) {
+        return buttons;
+    }
+    if (this->itemEffect.timer & 4) {
+        if (this->itemEffect.timer & 2) {
+            return 0x8000;
+        }
+        return 0x2000;
+    }
+    return buttons;
+}
 
 void func_800C811C(Fighter *this);
 

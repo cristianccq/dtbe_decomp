@@ -2189,7 +2189,73 @@ void func_800A9D0C(Unk800A9C4C *this) {
 
 INCLUDE_RODATA("game/nonmatchings/fighters/sakuyamon", D_8006AE40);
 
-INCLUDE_ASM("game/nonmatchings/fighters/sakuyamon", func_800A9D70);
+typedef struct {
+    s32 words[8];
+} AlignedSV4;
+extern const AlignedSV4 D_8006AE40;
+
+/* Draws func_800A9C4C's effect as a 4-quad cluster rotated by unk28/unk2C/unk30 and scaled by unk38. */
+void func_800A9D70(Unk800A9C4C *this, Camera *camera) {
+    SVECTOR corners[4];
+    PolyFT4Shape shape;
+    MatrixWords m;
+    MATRIX *mp = &m.m;
+    void *packet;
+    u_long *ot;
+    s32 zShift;
+    s32 scale;
+    s32 intensity;
+    s32 vramY;
+    s32 one;
+    s32 negOne;
+
+    shape.corners[0] = &corners[0];
+    shape.corners[1] = &corners[1];
+    shape.corners[2] = &corners[2];
+    shape.corners[3] = &corners[3];
+    *(AlignedSV4 *)corners = D_8006AE40;
+    UV_BYTES(shape.uv2)[0] = 0;
+    UV_BYTES(shape.uv0)[0] = 0;
+    UV_BYTES(shape.uv3)[0] = 0x3F;
+    UV_BYTES(shape.uv1)[0] = 0x3F;
+    UV_BYTES(shape.uv1)[1] = 0;
+    UV_BYTES(shape.uv0)[1] = 0;
+    UV_BYTES(shape.uv3)[1] = 0x3F;
+    scale = this->unk38;
+    ot = camera->ot.slots;
+    zShift = camera->zShift;
+    packet = PRIM_BUFFER_FREE;
+    vramY = this->vramY;
+    intensity = 255 - ((scale * 255) >> 11);
+    shape.color = (intensity >> 2) | (intensity << 8) | ((intensity >> 1) << 16);
+    UV_BYTES(shape.uv2)[1] = 0x3F;
+    shape.clut = getClut(0x1C0, vramY + 0xFB);
+    shape.tpage = getTPage(0, 1, 0x1C0, vramY);
+    shape.flags = 9;
+    setTranslationSak(m.m.t, &this->position);
+    one = 0x1000;
+    m.words[0] = one;
+    m.words[1] = 0;
+    m.words[2] = one;
+    m.words[3] = 0;
+    m.words[4] = one;
+    matrixRotateX(mp, this->unk28);
+    matrixRotateY(mp, this->unk2C);
+    matrixRotateZ(mp, this->unk30);
+    matrixScale(mp, scale, scale, scale);
+    setModelMatrix(mp);
+    packet = buildPolyFT4(&shape, packet, ot, zShift);
+    corners[2].vx = one;
+    corners[0].vx = one;
+    packet = buildPolyFT4(&shape, packet, ot, zShift);
+    corners[1].vy = one;
+    corners[0].vy = one;
+    packet = buildPolyFT4(&shape, packet, ot, zShift);
+    negOne = -0x1000;
+    corners[2].vx = negOne;
+    corners[0].vx = negOne;
+    PRIM_BUFFER_FREE = buildPolyFT4(&shape, packet, ot, zShift);
+}
 
 /* Sakuyamon's destructor. */
 void Sakuyamon_destroy(Entity *this, s32 flags) {
